@@ -1,0 +1,40 @@
+[Unit]
+Description=LuxASR WebSocket Gateway (FastAPI + Uvicorn)
+After=network.target <asr>.service
+Wants=<asr>.service
+
+[Service]
+User=<application user>
+Group=www-data
+WorkingDirectory=<application home>
+
+# Set umask so socket is created with correct permissions (660)
+UMask=0007
+
+# No GPU needed - VAD runs on CPU
+Environment="CUDA_VISIBLE_DEVICES="
+Environment="PATH=<Python binaries home>"
+Environment="LD_LIBRARY_PATH=<libray paths to set>"
+
+# Uvicorn with Unix socket binding
+# --workers: Number of worker processes (each loads VAD model)
+# --loop uvloop: High-performance event loop
+# --ws websockets: WebSocket implementation
+ExecStart=i<Python binaries home>/uvicorn \
+    ws_gateway:app \
+    --uds <application home>/ws_gateway.sock \
+    --workers 2 \
+    --loop uvloop \
+    --ws websockets \
+    --log-level info \
+    --access-log \
+    --timeout-keep-alive 60
+
+Restart=always
+RestartSec=5
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=fast-ws-gw
+
+[Install]
+WantedBy=multi-user.target
